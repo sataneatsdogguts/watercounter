@@ -1,3 +1,4 @@
-.pio
+.pio/
+.venv/
 README
 settings.h
