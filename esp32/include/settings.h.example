@@ -3,3 +3,4 @@
 const char* ssid = "WIFI NAME";
 const char* passwd = "WIFI PASSWORD";
 
+const char* SERVER_URL = "http://SERVER URL/api/water";

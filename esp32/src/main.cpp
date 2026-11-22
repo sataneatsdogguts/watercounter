@@ -1,103 +1,53 @@
 #include <Arduino.h>
 #include <WiFi.h>
-#include <WebServer.h>
+#include <HTTPClient.h>
+
 #include "settings.h"
 
-#define LED_PIN 2
-
-WebServer server(80);
+const int LED_PIN = 2;
 
 bool led_state = false;
 
-const char html[] PROGMEM = R"rawliteral(
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 LED Control</title>
+unsigned long lastSendTime = 0;
+const unsigned long sendInterval = 5000;
 
-    <style>
-        body {
-            font-family: sans-serif;
-            background: #20232a;
-            color: white;
-            text-align: center;
-            padding-top: 80px;
-        }
 
-        button {
-            padding: 15px 30px;
-            margin: 10px;
-            font-size: 18px;
-            cursor: pointer;
-            border: none;
-            border-radius: 8px;
-        }
+void connectWifi(){
+    Serial.print("connecting to: ");
+    Serial.println(ssid);
 
-        .on {
-            background: #4caf50;
-            color: white;
-        }
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(ssid, passwd);
 
-        .off {
-            background: #e53935;
-            color: white;
-        }
-    </style>
-</head>
+    for (int i = 0; WiFi.status()!=WL_CONNECTED && i<40; i++){
+        delay(500);
+        Serial.print(".");
+    }
 
-<body>
-    <h1>ESP32 LED Control</h1>
-
-    <h2 id="status">LED is OFF</h2>
-
-    <button class="on" onclick="controlLED('on')">
-        Turn ON
-    </button>
-
-    <button class="off" onclick="controlLED('off')">
-        Turn OFF
-    </button>
-
-    <script>
-        async function controlLED(state) {
-            try {
-                const response = await fetch('/led/' + state, {
-                    method: 'POST'
-                });
-
-                if (!response.ok) {
-                    throw new Error('Request failed');
-                }
-
-                document.getElementById('status').textContent =
-                    'LED is ' + state.toUpperCase();
-
-            } catch (error) {
-                document.getElementById('status').textContent =
-                    'Connection error';
-            }
-        }
-    </script>
-</body>
-</html>
-)rawliteral";
-
-void handle_root() {
-    server.send(200, "text/html", html);
+    if (WiFi.status()== WL_CONNECTED){
+        Serial.print("ip: ");
+        Serial.println(WiFi.localIP());
+    }
+    else{
+        Serial.println("connection failed");
+    }
 }
-void handle_on(){
-    digitalWrite(LED_PIN, HIGH);
-    led_state = true;
 
-    server.send(200, "text/plain", "ON");
-}
-void handle_off(){
-    digitalWrite(LED_PIN, LOW);
-    led_state = false;
+void sentData(){
+    if (WiFi.status() != WL_CONNECTED) return;
+    HTTPClient http;
+    http.begin(SERVER_URL);
+    http.addHeader("Content-Type", "application/json");
 
-    server.send(200, "text/plain", "OFF");
+    String json = "{\"name\":\"mememe\"}";
+    Serial.println("sending data");
+
+    Serial.print("code: ");
+    Serial.println(http.POST(json));
+    Serial.print("response: ");
+    Serial.println(http.getString());
+    
+    http.end();
 }
 
 void setup(){
@@ -107,27 +57,13 @@ void setup(){
     pinMode(LED_PIN, OUTPUT);
     digitalWrite(LED_PIN, LOW);
 
-
-    Serial.println("connecting");
-
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(ssid, passwd);
-
-    while(WiFi.status()!=WL_CONNECTED){
-        delay(500);
-        Serial.print(".");
-    }
-    Serial.println("ip:");
-    Serial.println(WiFi.localIP());
-   
-    server.on("/", HTTP_GET, handle_root);
-    server.on("/led/on", HTTP_POST, handle_on);
-    server.on("/led/off", HTTP_POST, handle_off);
-
-    server.begin();
-    Serial.println("HTTP server started!");
+    connectWifi();
 }
 
 void loop(){
-    server.handleClient();
+    unsigned long currentTime = millis();
+    if (currentTime - lastSendTime >= sendInterval){
+        lastSendTime = currentTime;
+        sentData();
+    }
 }
