@@ -2,13 +2,14 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-data = {}
+data = {"name": "hello!"}
 
 @app.route("/")
 def index():
-    return """
+    return f"""
 <h1>Water Monitor</h1>
 <p>Server is running</p>
+<p>{data["name"]}</p>
 """
 
 @app.route("/api/water", methods=["POST"])
