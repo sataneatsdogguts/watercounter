@@ -1,0 +1,5 @@
+#pragma once
+
+const char* ssid = "WIFI NAME";
+const char* passwd = "WIFI PASSWORD";
+
